@@ -93,7 +93,7 @@ func (r *DockerRunner) SaveFile(path string, data string) error {
 			return
 		}
 	}()
-// Create the exec configuration
+	// Create the exec configuration
 	execConfig := types.ExecConfig{
 		AttachStdout: true,
 		AttachStderr: true,
