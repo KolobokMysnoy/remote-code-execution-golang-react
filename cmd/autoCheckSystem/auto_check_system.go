@@ -2,6 +2,7 @@ package main
 
 import (
 	consts "check_system/config"
+	"check_system/internal/docker/delivery"
 	"context"
 	"fmt"
 	"net/http"
@@ -45,7 +46,8 @@ func main() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		l := FromContext(r.Context())
 		l.Info("A")
-
+		
+		delivery.RunCommand("ls -la", r.Context())
 		w.Write([]byte("welcome"))
 	})
 
