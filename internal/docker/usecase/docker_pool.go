@@ -40,6 +40,10 @@ func (c *ConnectionsPool) Active() int {
 	return c.activeContainer
 }
 
+func (c *ConnectionsPool) createdCon() int {
+	return len(c.conn)
+}
+
 func (c *ConnectionsPool) create() (*client.Client, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -104,24 +108,30 @@ func (c *ConnectionsPool) AddContainer() (error) {
 
 // Release connections and stop containers if don't use it
 func (c *ConnectionsPool) ReleaseExtraContainers(desiredCount int) (error) {
-	// XXX not run anywhere...
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	log.Default().Print("Release containers")
+	log.Default().Print("Active con", c.activeContainer)
+	log.Default().Print("Created con", c.createdCon())
+	log.Default().Print("Desired", desiredCount)
 
-	if len(c.conn) > desiredCount && len(c.conn) != c.activeContainer {
-		for !(len(c.conn) == c.activeContainer || len(c.conn) <= desiredCount) {
+	// OPTIMIZE Maybe remove function
+	if c.createdCon() > desiredCount && c.createdCon() != c.Active() {
+		for !(c.createdCon() == c.Active() || c.createdCon() <= desiredCount) {
 			conn:= <-c.conn
 			
-			containerInfo, err := conn.ContainerList(context.Background(), container.ListOptions{})
+			ctx := context.Background()
+
+			containerInfo, err := conn.ContainerList(ctx, container.ListOptions{})
 			if err != nil {
 				return err
 			}
 
 			id := containerInfo[len(containerInfo)-1].ID
-			conn.ContainerStop(context.Background(), id, container.StopOptions{})
-
+			conn.ContainerStop(ctx, id, container.StopOptions{})
+			conn.ContainerRemove(ctx, id, container.RemoveOptions{})
 			conn.Close()
+
 		}
 	}
 

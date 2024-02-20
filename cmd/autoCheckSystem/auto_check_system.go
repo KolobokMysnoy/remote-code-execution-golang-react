@@ -8,25 +8,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"check_system/internal/helpers"
+
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
 type key struct{}
-
-// WithContext returns a new context with the logger added.
-func WithContext(ctx context.Context, logger *zap.Logger) context.Context {
-    return context.WithValue(ctx, key{}, logger)
-}
-
-// FromContext returns the logger in the context if it exists, otherwise a new logger is returned.
-func FromContext(ctx context.Context) *zap.Logger {
-    logger := ctx.Value(key{})
-    if l, ok := logger.(*zap.Logger); ok {
-        return l
-    }
-    return zap.Must(zap.NewDevelopment())
-}
 
 func loggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -52,7 +40,7 @@ func main() {
 	}
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		l := FromContext(r.Context())
+		l := helpers.FromContext(r.Context())
 		l.Info("A")
 		
 		data := `package main

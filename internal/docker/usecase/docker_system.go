@@ -49,7 +49,7 @@ func NewDockerSystem(languages map[string]string, ctx context.Context) (domain.D
 				select {
 				case <-ticker.C:
 					for _, dp := range system.dockersPool {
-						dp.ReleaseExtraContainers(2)
+						dp.ReleaseExtraContainers(system.min)
 					}
 				}
 			}
