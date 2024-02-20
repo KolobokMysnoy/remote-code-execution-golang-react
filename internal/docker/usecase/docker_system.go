@@ -20,6 +20,7 @@ func NewDockerSystem(languages map[string]string, ctx context.Context) (domain.D
         return nil, fmt.Errorf("logger not exist in context")
     }
 	
+	// TODO
 	system := &DockersSystem{
 		languagesImages: languages,
 		dockersPool: make(map[string]domain.DockerPool),

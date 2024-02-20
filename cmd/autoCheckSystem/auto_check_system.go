@@ -2,7 +2,8 @@ package main
 
 import (
 	consts "check_system/config"
-	"check_system/internal/docker/delivery"
+	runners_delivery "check_system/internal/code_runner/delivery"
+	"check_system/internal/docker/usecase"
 	"context"
 	"fmt"
 	"net/http"
@@ -42,12 +43,34 @@ func main() {
 
 	r := chi.NewRouter()
 	r.Use(loggerMiddleware(logger))
+	ctx := context.WithValue(context.Background(), consts.LoggerCtxName, logger)
+
+	system, err := usecase.NewDockerSystem(consts.Languages, ctx) 
+	if err != nil {
+		logger.Error("can't init system", zap.Error(err))
+		return
+	}
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		l := FromContext(r.Context())
 		l.Info("A")
 		
-		delivery.RunCommand("ls -la", r.Context())
+		data := `package main
+
+import "fmt"
+
+func main() {
+	fmt.Print("Hello world!")
+}`
+
+		out, errs, err := runners_delivery.RunGo(data, r.Context(), system)
+		if err != nil {
+			logger.Error("err in rungo function", zap.Error(err))
+		} else {
+			logger.Info("output: ", zap.String("output", out), zap.String("errs", errs))
+		}
+		system.SetMin(0)
+		system.SetMax(1)
 		w.Write([]byte("welcome"))
 	})
 

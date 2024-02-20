@@ -35,6 +35,9 @@ type DockerPool interface {
 	Active() int
 }
 
+type ProgramRunner interface {
+	RunProgram(nameOfFile, program string) (outStr, errOut string, err error)
+}
 
 // Key is language name and value is image in docker container
 type LanguageRec map[string]string
