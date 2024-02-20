@@ -11,14 +11,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type DockerSystem interface {
-	GetRunner(language string, ctx context.Context) (domain.Runner, error)
-	ReturnRunner(runner domain.Runner)
-	SetMax(int)
-	SetMin(int)
-}
 
-func NewDockerSystem(languages map[string]string, ctx context.Context) (DockerSystem, error) {
+
+func NewDockerSystem(languages map[string]string, ctx context.Context) (domain.DockerSystem, error) {
 	l := ctx.Value(consts.LoggerCtxName)
 	log, ok := l.(*zap.Logger);
     if !ok {
@@ -27,7 +22,7 @@ func NewDockerSystem(languages map[string]string, ctx context.Context) (DockerSy
 	
 	system := &DockersSystem{
 		languagesImages: languages,
-		dockersPool: make(map[string]DockerPool),
+		dockersPool: make(map[string]domain.DockerPool),
 		max: 5,
 		min: 2,
 	}
@@ -63,7 +58,7 @@ func NewDockerSystem(languages map[string]string, ctx context.Context) (DockerSy
 }
 
 type DockersSystem struct {
-	dockersPool 	map[string]DockerPool
+	dockersPool 	map[string]domain.DockerPool
 	languagesImages map[string]string
 	mu sync.Mutex
 	max int

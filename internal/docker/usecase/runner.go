@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
+	"log"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -45,6 +45,16 @@ func (r *DockerRunner) GetLanguage() string {
 	return r.language
 }
 
+func (r *DockerRunner) getContainerId(cli *client.Client) (string, error) {
+	containerInfo, err := cli.ContainerList(context.Background(), container.ListOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	id := containerInfo[0].ID
+	return id, nil
+}
+
 func (r *DockerRunner) RunCommand(command []string) (string, string, error) {
 	// https://stackoverflow.com/questions/52774830/docker-exec-command-from-golang-api
 	execConfig := types.ExecConfig{
@@ -74,62 +84,6 @@ func (r *DockerRunner) RunCommand(command []string) (string, string, error) {
 	return stdoutStr, stderrStr, nil
 }
 
-func (r *DockerRunner) SaveFile(path string, data string) error {
-	// Create a tar stream from the text content
-	_, tarWriter := io.Pipe()
-	go func() {
-		defer tarWriter.Close()
-		tw := tar.NewWriter(tarWriter)
-		defer tw.Close()
-		header := &tar.Header{
-			Name: filepath.Base(path),
-			Mode: 0600,
-			Size: int64(len(data)),
-		}
-		if err := tw.WriteHeader(header); err != nil {
-			// TODO make errors here
-			return 
-		}
-		if _, err := io.Copy(tw, bytes.NewReader([]byte(data))); err != nil {
-			// TODO make errors here
-			return
-		}
-	}()
-	// Create the exec configuration
-	execConfig := types.ExecConfig{
-		AttachStdout: true,
-		AttachStderr: true,
-		Cmd:          []string{"sh", "-c", fmt.Sprintf("cat > %s", path)},
-	}
-
-	// Create the exec instance
-	resp, err := r.cli.ContainerExecCreate(context.Background(), r.idContainer, execConfig)
-	if err != nil {
-		return err
-	}
-
-	// Start the exec instance with the tar stream as input
-	err = r.cli.ContainerExecStart(context.Background(), resp.ID, types.ExecStartCheck{})
-	if err != nil {
-		return err
-	}
-
-	// Attach to the exec instance for handling input/output
-	hijackedResp, err := r.cli.ContainerExecAttach(context.Background(), resp.ID, types.ExecStartCheck{})
-	if err != nil {
-		return err
-	}
-	defer hijackedResp.Close()
-
-	// Wait for the exec instance to finish
-	_, err = r.cli.ContainerExecInspect(context.Background(), resp.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (r *DockerRunner) CloseRunner() {
 	r.releaseFunc()
 }
@@ -150,12 +104,46 @@ func (r *DockerRunner) closeApp(cli client.Client, containerID, processName stri
 	return nil
 }
 
-func (r *DockerRunner) getContainerId(cli *client.Client) (string, error) {
-	containerInfo, err := cli.ContainerList(context.Background(), container.ListOptions{})
+func (r *DockerRunner) SaveFile(path, nameOfFile, data string) error {
+	// Create a tar stream from the text content
+	tarR, err := r.getTarStream(nameOfFile, data)
 	if err != nil {
-		return "", err
+		log.Println("Tar error:", err)
+		return err
 	}
 
-	id := containerInfo[0].ID
-	return id, nil
-} 
+	// Use the tar stream directly as an io.Reader
+	err = r.cli.CopyToContainer(context.Background(), r.idContainer, path, tarR, types.CopyToContainerOptions{})
+	if err != nil {
+		log.Println("Copy error:", err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *DockerRunner) getTarStream(path, data string) (io.Reader, error) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	hdr := &tar.Header{
+		Name: path,
+		Mode: 0644,
+		Size: int64(len(data)),
+	}
+
+	if err := tw.WriteHeader(hdr); err != nil {
+		return nil, err
+	}
+
+	if _, err := tw.Write([]byte(data)); err != nil {
+		return nil, err
+	}
+
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	// Use the buffer as an io.Reader
+	return &buf, nil
+}

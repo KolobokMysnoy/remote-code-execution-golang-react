@@ -34,12 +34,12 @@ func main() {
 }`
 
 	
-	if err := runner.SaveFile("main.go", data); err != nil {
+	if err := runner.SaveFile("/go", "main.go", data); err != nil {
 		log.Default().Print("Troubles save", err)
 		return 
 	}
 
-	cmd := "ls -la"
+	cmd := `cd /`
 	output, errors, err := runner.RunCommand(strings.Split(cmd, " "))
 	if err != nil {
 		return
@@ -48,16 +48,15 @@ func main() {
 	log.Default().Print("Output ", output)
 	log.Default().Print("Errors ", errors)
 
-	
-	cmd = "cat main.go"
+	cmd = "bash -c 'cd / && ls -la'"
 	output, errors, err = runner.RunCommand(strings.Split(cmd, " "))
 	if err != nil {
 		return
 	}
 	log.Default().Print("Output ", output)
 	log.Default().Print("Errors ", errors)
-
-	cmd = "od -c main.go"
+	
+	cmd = "cat main.go"
 	output, errors, err = runner.RunCommand(strings.Split(cmd, " "))
 	if err != nil {
 		return

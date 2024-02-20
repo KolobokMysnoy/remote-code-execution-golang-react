@@ -2,6 +2,7 @@ package usecase
 
 import (
 	consts "check_system/config"
+	"check_system/internal/domain"
 	"context"
 	"log"
 	"sync"
@@ -12,16 +13,6 @@ import (
 	"github.com/docker/docker/client"
 )
 
-type DockerPool interface {
-	AddContainer() (error) 
-	ReleaseExtraContainers(desiredSizeOfPool int) (error) 
-	ReturnContainer(*client.Client) 
-	// Timeout to wait untill raise error
-	GetContainer(timeout int) (*client.Client, error) 
-	SetImage(string) 
-	Size() int
-	Active() int
-}
 
 
 type ConnectionsPool struct {
@@ -32,7 +23,7 @@ type ConnectionsPool struct {
 }
 
 // Create connection pool
-func NewConnectionsPool(image string, sizeOfPool int) (DockerPool, error) {
+func NewConnectionsPool(image string, sizeOfPool int) (domain.DockerPool, error) {
 	pool := &ConnectionsPool{
 		image: image,
 		conn: make(chan *client.Client, sizeOfPool),
